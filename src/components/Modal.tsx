@@ -29,21 +29,35 @@ export function Modal({
 }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
   const { t } = useI18n();
   useBodyScrollLock(open);
+
+  // Keep the latest callback without making it an effect dependency: callers pass
+  // inline functions, and re-running the focus effect on their re-renders would
+  // steal focus from the inputs inside the dialog.
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKeyDown);
-    const timer = window.setTimeout(() => panelRef.current?.focus(), 10);
+    // Only move focus to the panel when nothing inside it is focused already,
+    // so an auto-focused field keeps the caret.
+    const timer = window.setTimeout(() => {
+      const panel = panelRef.current;
+      if (!panel || panel.contains(document.activeElement)) return;
+      panel.focus();
+    }, 10);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       window.clearTimeout(timer);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
