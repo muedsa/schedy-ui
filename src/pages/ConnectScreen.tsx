@@ -5,6 +5,7 @@ import { ConnectionFields, type ConnectionDraft } from "../components/Connection
 import { ApiError, testConnection } from "../lib/api";
 import {
   DEFAULT_AUTO_REFRESH,
+  DEFAULT_CONNECTION_MODE,
   saveConnection,
   validateBaseUrl,
   type BaseUrlError,
@@ -29,7 +30,7 @@ export function ConnectScreen({ theme, onToggleTheme, onConnected }: ConnectScre
   const [draft, setDraft] = useState<ConnectionDraft>({
     baseUrl: "",
     apiKey: "",
-    mode: "proxy",
+    mode: DEFAULT_CONNECTION_MODE,
     autoRefresh: DEFAULT_AUTO_REFRESH,
   });
   const [showKey, setShowKey] = useState(false);

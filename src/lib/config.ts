@@ -1,9 +1,13 @@
 import type { ConnectionConfig, ConnectionMode } from "../types";
+import { STATIC_EXPORT } from "./runtime";
 
 const STORAGE_KEY = "schedy-ui.connection.v1";
 const THEME_KEY = "schedy-ui.theme.v1";
 
 export const DEFAULT_AUTO_REFRESH = 15_000;
+
+/** Static exports have no proxy endpoint, so they can only connect directly. */
+export const DEFAULT_CONNECTION_MODE: ConnectionMode = STATIC_EXPORT ? "direct" : "proxy";
 
 export function loadConnection(): ConnectionConfig | null {
   try {
@@ -11,7 +15,8 @@ export function loadConnection(): ConnectionConfig | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<ConnectionConfig>;
     if (typeof parsed.baseUrl !== "string" || !parsed.baseUrl.trim()) return null;
-    const mode: ConnectionMode = parsed.mode === "direct" ? "direct" : "proxy";
+    // A connection saved by a proxied build must not break a static export.
+    const mode: ConnectionMode = STATIC_EXPORT || parsed.mode === "direct" ? "direct" : "proxy";
     return {
       baseUrl: parsed.baseUrl.trim(),
       apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey : "",
@@ -27,7 +32,8 @@ export function loadConnection(): ConnectionConfig | null {
 }
 
 export function saveConnection(config: ConnectionConfig): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  const mode: ConnectionMode = STATIC_EXPORT ? "direct" : config.mode;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...config, mode }));
 }
 
 export function clearConnection(): void {

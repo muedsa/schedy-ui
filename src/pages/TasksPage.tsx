@@ -19,6 +19,7 @@ import { TaskTable } from "../components/TaskTable";
 import { useToast } from "../components/Toast";
 import { ApiError, getMetrics, listTasks, parseMetrics } from "../lib/api";
 import { localeTag, useI18n } from "../lib/i18n";
+import { STATIC_EXPORT } from "../lib/runtime";
 import type {
   ConnectionConfig,
   ParsedMetrics,
@@ -455,7 +456,7 @@ export function TasksPage({ config, onOpenSettings }: TasksPageProps) {
           <ul>
             <li>{t("tasks.loadErrorHint1")}</li>
             <li>{t("tasks.loadErrorHint2")}</li>
-            <li>{t("tasks.loadErrorHint3")}</li>
+            {!STATIC_EXPORT && <li>{t("tasks.loadErrorHint3")}</li>}
           </ul>
           <div className="connection-error-actions">
             <button type="button" className="btn btn-secondary" onClick={onOpenSettings}>

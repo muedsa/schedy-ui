@@ -65,6 +65,8 @@ SCHEDY_CORS_ORIGIN=http://127.0.0.1:5173 schedy server
 
 生产部署时请改成实际页面的 origin，例如 `https://schedy-console.example.com`。如果无法在服务端配置 CORS，请使用本地代理模式。
 
+本地代理只存在于 `pnpm dev`、`pnpm preview`、`pnpm start` 提供的页面中。静态导出（`pnpm build:static`）完全没有代理，始终使用浏览器直连，详见 [静态导出](#静态导出)。
+
 ## 任务排期
 
 设置执行时间有两种方式：
@@ -87,6 +89,7 @@ SCHEDY_CORS_ORIGIN=http://127.0.0.1:5173 schedy server
 | `pnpm format`       | 使用 Prettier 格式化源码、配置和文档     |
 | `pnpm format:check` | 检查是否符合 Prettier 格式               |
 | `pnpm build`        | 类型检查并构建到 `dist/`                 |
+| `pnpm build:static` | 构建不带代理的静态导出                   |
 | `pnpm preview`      | 预览构建结果（同样带代理）               |
 | `pnpm start`        | 启动生产服务器，提供静态文件和代理       |
 | `pnpm mock`         | 启动内存版 Schedy 模拟服务，用于安全测试 |
@@ -132,6 +135,21 @@ PORT=4173 HOST=0.0.0.0 pnpm start
 
 部署在 Nginx / Caddy 等反向代理后时，建议为备份下载和慢请求设置足够的超时时间（例如 5 分钟），并按需启用 HTTPS。API Key 会随请求经过该服务器，请确保部署环境可信。
 
+## 静态导出
+
+常规 `pnpm build` 的产物本身就是静态文件，但它保留代理与直连两种模式，并默认使用本地代理——而代理只在 `pnpm dev`、`pnpm preview`、`pnpm start` 提供页面时才存在。如果要部署到纯静态服务器（没有 Node 进程、没有代理），请使用静态导出构建：
+
+```bash
+pnpm build:static
+```
+
+此时 `dist/` 只包含 HTML、CSS 和 JS，可直接交给 Nginx、GitHub Pages、S3 等静态托管。
+
+- 界面不再提供代理选项：所有连接都走浏览器直连，因此需要 Schedy 允许托管页面的来源（`SCHEDY_CORS_ORIGIN`）。
+- 路由基于 URL 哈希（`#/tasks`、`#/system`），不需要配置 SPA 重写规则。
+- 不需要 `pnpm start` 与 `server.mjs`；它们仍用于常规的服务器部署方式。
+- 需要部署到子路径时，用相对 base 构建：`pnpm build:static -- --base=./`。
+
 ## 安全说明
 
 - 服务地址和 API Key 保存在当前浏览器的 `localStorage`（键名 `schedy-ui.connection.v1`），不会写入源码或构建产物。
@@ -161,6 +179,7 @@ src/
   lib/config.ts     连接配置与校验
   lib/i18n.tsx      中英文文案、语言状态与翻译辅助
   lib/format.ts     日期、数字、时长格式化
+  lib/runtime.ts    构建模式标志（静态导出）
   pages/            任务页、系统页、连接页
   styles.css        设计变量与响应式样式
 server/

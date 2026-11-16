@@ -158,6 +158,8 @@ const zh = {
     "请求经当前页面同源的 /__schedy 转发，无需在 Schedy 上开启 CORS。需要页面由 pnpm dev 或 pnpm start 提供。",
   "connection.directHint":
     "浏览器直接访问 Schedy。需要在 Schedy 启动时设置 SCHEDY_CORS_ORIGIN，允许当前页面来源。",
+  "connection.staticHint":
+    "静态导出版本没有本地代理，浏览器会直接访问 Schedy；需要在 Schedy 启动时设置 SCHEDY_CORS_ORIGIN，允许当前页面来源。",
   "connection.serverUrl": "Schedy 服务地址",
   "connection.serverUrlHint": "完整 origin，可带路径前缀，例如 https://example.com/schedy",
   "connection.apiKeyPlaceholder": "未启用 SCHEDY_API_KEY 时可留空",
@@ -582,6 +584,8 @@ const en: MessageSet = {
     "Requests are forwarded through the same-origin /__schedy proxy, so Schedy does not need CORS. The page must be served by pnpm dev or pnpm start.",
   "connection.directHint":
     "The browser calls Schedy directly. Start Schedy with SCHEDY_CORS_ORIGIN set to this page's origin.",
+  "connection.staticHint":
+    "This static export has no local proxy, so the browser calls Schedy directly; the server must allow this page's origin (CORS).",
   "connection.serverUrl": "Schedy server URL",
   "connection.serverUrlHint":
     "Full origin, optionally with a path prefix, e.g. https://example.com/schedy",

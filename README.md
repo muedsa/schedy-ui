@@ -65,6 +65,8 @@ SCHEDY_CORS_ORIGIN=http://127.0.0.1:5173 schedy server
 
 In production, use the real origin, for example `https://schedy-console.example.com`. If you cannot configure CORS on the server, use the local proxy instead.
 
+The local proxy only exists while the page is served by `pnpm dev`, `pnpm preview`, or `pnpm start`. Static exports (`pnpm build:static`) have no proxy at all and always use direct mode; see [Static export](#static-export).
+
 ## Scheduling a task
 
 There are two ways to set the execution time:
@@ -87,6 +89,7 @@ Notes:
 | `pnpm format`       | Format source, config, and docs with Prettier            |
 | `pnpm format:check` | Check Prettier formatting                                |
 | `pnpm build`        | Type-check and build to `dist/`                          |
+| `pnpm build:static` | Build a proxy-free bundle for static hosting             |
 | `pnpm preview`      | Preview the production build (proxy included)            |
 | `pnpm start`        | Start the production server (static files + proxy)       |
 | `pnpm mock`         | Start the in-memory Schedy mock for safe experimentation |
@@ -132,6 +135,21 @@ Environment variables:
 
 Behind a reverse proxy such as Nginx or Caddy, allow long timeouts for backup downloads and slow requests (for example 5 minutes) and enable HTTPS as needed. The API key passes through the server, so keep the deployment environment trusted.
 
+## Static export
+
+The regular `pnpm build` output is already static files, but it keeps both connection modes and defaults to the local proxy — which only exists while `pnpm dev`, `pnpm preview`, or `pnpm start` serves the page. To host the console on a plain static file server with no Node process and no proxy, build the static export instead:
+
+```bash
+pnpm build:static
+```
+
+`dist/` then contains only HTML, CSS, and JS. Serve it from Nginx, GitHub Pages, S3, or any similar host.
+
+- The proxy option is removed from the UI: every connection uses direct mode, so Schedy must allow the hosting origin via `SCHEDY_CORS_ORIGIN`.
+- Routing uses URL hashes (`#/tasks`, `#/system`), so no SPA rewrite rules are required.
+- `pnpm start` and `server.mjs` are not needed; keep them for the regular server-served build.
+- To host under a subpath, build with a relative base: `pnpm build:static -- --base=./`.
+
 ## Security notes
 
 - The server URL and API key live in the current browser's `localStorage` (`schedy-ui.connection.v1`); nothing is written to the source tree or the build output.
@@ -161,6 +179,7 @@ src/
   lib/config.ts     connection config and validation
   lib/i18n.tsx      Chinese/English messages, locale state, helpers
   lib/format.ts     date, number, and duration formatting
+  lib/runtime.ts    build-mode flags (static export)
   pages/            tasks, system, and connect screens
   styles.css        design tokens and responsive styles
 server/

@@ -1,5 +1,6 @@
 import { Eye, EyeOff, Globe2, PlugZap, ShieldCheck } from "lucide-react";
 import { useI18n } from "../lib/i18n";
+import { STATIC_EXPORT } from "../lib/runtime";
 import type { ConnectionMode } from "../types";
 
 export interface ConnectionDraft {
@@ -35,35 +36,42 @@ export function ConnectionFields({
 
   return (
     <div className="connection-fields">
-      <div className="field">
-        <span className="field-label">{t("connection.mode")}</span>
-        <div className="segmented mode-segmented" role="group" aria-label={t("connection.mode")}>
-          <button
-            type="button"
-            className={value.mode === "proxy" ? "segment active" : "segment"}
-            onClick={() => patch({ mode: "proxy" })}
-            disabled={disabled}
-            aria-pressed={value.mode === "proxy"}
-          >
-            <ShieldCheck size={15} />
-            {t("connection.proxy")}
-            <span className="segment-badge">{t("connection.recommended")}</span>
-          </button>
-          <button
-            type="button"
-            className={value.mode === "direct" ? "segment active" : "segment"}
-            onClick={() => patch({ mode: "direct" })}
-            disabled={disabled}
-            aria-pressed={value.mode === "direct"}
-          >
-            <Globe2 size={15} />
-            {t("connection.direct")}
-          </button>
+      {STATIC_EXPORT ? (
+        <div className="field">
+          <span className="field-label">{t("connection.mode")}</span>
+          <p className="hint">{t("connection.staticHint")}</p>
         </div>
-        <p className="hint">
-          {value.mode === "proxy" ? t("connection.proxyHint") : t("connection.directHint")}
-        </p>
-      </div>
+      ) : (
+        <div className="field">
+          <span className="field-label">{t("connection.mode")}</span>
+          <div className="segmented mode-segmented" role="group" aria-label={t("connection.mode")}>
+            <button
+              type="button"
+              className={value.mode === "proxy" ? "segment active" : "segment"}
+              onClick={() => patch({ mode: "proxy" })}
+              disabled={disabled}
+              aria-pressed={value.mode === "proxy"}
+            >
+              <ShieldCheck size={15} />
+              {t("connection.proxy")}
+              <span className="segment-badge">{t("connection.recommended")}</span>
+            </button>
+            <button
+              type="button"
+              className={value.mode === "direct" ? "segment active" : "segment"}
+              onClick={() => patch({ mode: "direct" })}
+              disabled={disabled}
+              aria-pressed={value.mode === "direct"}
+            >
+              <Globe2 size={15} />
+              {t("connection.direct")}
+            </button>
+          </div>
+          <p className="hint">
+            {value.mode === "proxy" ? t("connection.proxyHint") : t("connection.directHint")}
+          </p>
+        </div>
+      )}
 
       <label className="field">
         <span className="field-label">{t("connection.serverUrl")}</span>
