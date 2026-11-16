@@ -8,6 +8,10 @@ dist-ssr/
 .vite/
 *.tsbuildinfo
 
+# cloudflare wrangler
+.wrangler/
+.dev.vars
+
 # local files
 *.local
 

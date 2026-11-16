@@ -150,6 +150,14 @@ pnpm build:static
 - `pnpm start` and `server.mjs` are not needed; keep them for the regular server-served build.
 - To host under a subpath, build with a relative base: `pnpm build:static -- --base=./`.
 
+### Cloudflare Workers
+
+Workers Builds (or Pages) can serve the static export. Use `pnpm build:static` as the build command and `npx wrangler deploy` as the deploy command; the committed `wrangler.jsonc` points Workers at `./dist/`.
+
+Keep that `wrangler.jsonc`: without a Wrangler configuration file, `wrangler deploy` runs its automatic framework setup, rebuilds the project with `pnpm run build` (overwriting the static export), and deploys that proxy-mode bundle.
+
+Workers serves the page from `https://<worker>.<subdomain>.workers.dev` or a custom domain, so that origin must be allowed by `SCHEDY_CORS_ORIGIN`.
+
 ## Security notes
 
 - The server URL and API key live in the current browser's `localStorage` (`schedy-ui.connection.v1`); nothing is written to the source tree or the build output.
@@ -187,6 +195,7 @@ server/
 server.mjs          production static server + proxy
 mock/server.mjs     in-memory Schedy mock
 vite.config.ts      dev/preview servers and the proxy plugin
+wrangler.jsonc      Cloudflare Workers static assets config
 README.md           this file (English)
 README.zh-CN.md     Chinese README
 ```

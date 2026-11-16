@@ -150,6 +150,14 @@ pnpm build:static
 - 不需要 `pnpm start` 与 `server.mjs`；它们仍用于常规的服务器部署方式。
 - 需要部署到子路径时，用相对 base 构建：`pnpm build:static -- --base=./`。
 
+### Cloudflare Workers
+
+Workers Builds（或 Pages）可以直接托管静态导出：构建命令用 `pnpm build:static`，部署命令用 `npx wrangler deploy`；仓库里的 `wrangler.jsonc` 已把资源目录指向 `./dist/`。
+
+请保留提交的 `wrangler.jsonc`：如果没有 Wrangler 配置文件，`wrangler deploy` 会触发自动框架配置，用 `pnpm run build` 重新构建（覆盖静态导出产物），并部署这个代理模式版本。
+
+Workers 的访问域名（`https://<worker>.<subdomain>.workers.dev` 或自定义域名）需要加入 `SCHEDY_CORS_ORIGIN`。
+
 ## 安全说明
 
 - 服务地址和 API Key 保存在当前浏览器的 `localStorage`（键名 `schedy-ui.connection.v1`），不会写入源码或构建产物。
@@ -187,6 +195,7 @@ server/
 server.mjs          生产静态服务器 + 代理
 mock/server.mjs     内存版模拟 Schedy
 vite.config.ts      开发/预览服务器与代理插件
+wrangler.jsonc      Cloudflare Workers 静态资源配置
 README.md           英文 README
 README.zh-CN.md     本文件（中文）
 ```
