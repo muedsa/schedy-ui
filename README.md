@@ -1,98 +1,113 @@
 # Schedy Console
 
-一个轻量的 Schedy HTTP 定时任务管理界面。用于创建、检查和清理 Schedy 任务，查看运行状态、Prometheus 指标，并下载数据库备份。
+English | [简体中文](./README.zh-CN.md)
 
-服务地址和 API Key 完全由浏览器端填写，构建产物中不包含任何凭据。
+A small web console for [Schedy](https://schedy.mintlify.app), the self-hosted HTTP task scheduler. Create, inspect, and clean up scheduled requests, watch health and Prometheus metrics, and download BadgerDB backups — all from the browser.
 
-![stack](https://img.shields.io/badge/React-19-149eca) ![stack](https://img.shields.io/badge/Vite-8-646cff) ![stack](https://img.shields.io/badge/TypeScript-7-3178c6) ![package manager](https://img.shields.io/badge/pnpm-12-f69220) ![license](https://img.shields.io/badge/license-MIT-green)
+The server URL and API key are entered in the browser only. The source tree and the build output contain no credentials.
 
-## 功能
+![React](https://img.shields.io/badge/React-19-149eca) ![Vite](https://img.shields.io/badge/Vite-8-646cff) ![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6) ![pnpm](https://img.shields.io/badge/pnpm-12-f69220) ![license](https://img.shields.io/badge/license-MIT-green)
 
-- 任务列表：状态、URL、执行时间、尝试结果；游标分页与自动刷新
-- 筛选：状态、目标 URL 精确匹配、计划执行时间范围
-- 新建 / 编辑任务：方法、执行时间或延迟、JSON / 文本请求体、自定义请求头、重试、超时、失败回调、重复间隔、幂等键
-- 任务详情：完整请求快照、cURL 复制、尝试时间线、失败响应体
-- 取消（软取消）、立即重放、按条件批量硬删除
-- 系统页：`/healthz`、`/readyz`、`/metrics` 可视化、BadgerDB 在线备份下载
-- 浅色 / 深色主题，响应式布局，中文 / 英文界面可随时切换
+## Features
 
-## 环境要求
+- **Task list** — status, target URL, scheduled time, and attempt outcome; cursor pagination with configurable auto-refresh.
+- **Filters** — status (via the stat cards), exact target URL, scheduled-time window (`due_after` / `due_before`), page size, and "Load more".
+- **Create / edit tasks** — HTTP method, a one-off execution time or a recurring schedule, JSON or text payload, custom headers, retries with fixed or exponential backoff, per-attempt timeout, failure callback URL, recurrence interval, and idempotency key.
+- **Task details** — full request snapshot, copyable cURL command, and an attempt timeline with response bodies.
+- **Task actions** — soft-cancel a pending task, replay a finished one, or bulk-delete by filter.
+- **System page** — `/healthz`, `/readyz`, `/metrics` visualisation, raw Prometheus text, delivery success rate, and an online BadgerDB backup download.
+- **Interface** — light / dark theme, responsive layout, and a Chinese / English switch that also localises dates, relative times, and numbers.
 
-- Node.js 20 或更高版本（已在 Node 24 上验证）
-- pnpm（已在 pnpm 12 上验证）
+## Requirements
+
+- Node.js 20 or newer (verified on Node 24)
+- pnpm (verified on pnpm 12)
 
 ```bash
 pnpm install
 ```
 
-## 快速开始
+## Quick start
 
 ```bash
 pnpm dev
 ```
 
-打开 http://127.0.0.1:5173 ，填写：
+Open <http://127.0.0.1:5173> and fill in:
 
-| 字段            | 说明                                         | 示例                    |
-| --------------- | -------------------------------------------- | ----------------------- |
-| 连接方式        | 推荐使用本地代理                             | 本地代理                |
-| Schedy 服务地址 | Schedy 的 origin，可带路径前缀               | `http://127.0.0.1:8080` |
-| API Key         | 服务端启用 `SCHEDY_API_KEY` 时填写，否则留空 | `your-api-key`          |
+| Field             | Description                                            | Example                 |
+| ----------------- | ------------------------------------------------------ | ----------------------- |
+| Connection mode   | Local proxy is recommended                             | Local proxy             |
+| Schedy server URL | Schedy origin; a path prefix is allowed                | `http://127.0.0.1:8080` |
+| API key           | Only needed when Schedy runs with `SCHEDY_API_KEY` set | `your-api-key`          |
 
-点击“测试连接”确认服务和认证都正常，再点击“开始使用”。
+Click **Test connection** to verify the server and the credentials, then **Get started**.
 
-### 界面语言
+### Interface language
 
-连接页和顶栏都有语言切换按钮，可在中文和英文之间切换。首次打开时按浏览器语言选择（`en*` 显示英文，其余显示中文），之后的选择保存在 `schedy-ui.locale.v1`。日期、相对时间和数字也会跟随界面语言格式化。
+The connect screen and the top bar both have a language toggle. The first visit follows the browser language (`en*` → English, everything else → Chinese); later choices are stored in `schedy-ui.locale.v1`. Dates, relative times, and numbers follow the selected language. The theme starts from the OS preference and is remembered in `schedy-ui.theme.v1`.
 
-### 连接方式
+### Connection modes
 
-**本地代理（推荐）**
+**Local proxy (recommended)**
 
-浏览器请求当前页面同源的 `/__schedy/*`，由 Vite 开发服务器或生产服务器转发到 Schedy。目标地址通过 `X-Schedy-Target` 请求头传入，API Key 通过 `X-Schedy-API-Key` 传入，界面语言通过 `X-Schedy-Locale` 传入（仅用于翻译代理自身的错误提示），代理本身不保存任何配置。
+The browser calls the same-origin `/__schedy/*` endpoint, and the Vite dev server or the production server forwards the request to Schedy. The target origin travels in `X-Schedy-Target`, the API key in `X-Schedy-API-Key`, and the UI language in `X-Schedy-Locale` (only used to localise the proxy's own error messages). The proxy stores nothing.
 
-适合 Schedy 未开启 CORS 的情况。页面必须由 `pnpm dev`、`pnpm preview` 或 `pnpm start` 提供。
+Use this when Schedy has no CORS support. The page must be served by `pnpm dev`, `pnpm preview`, or `pnpm start`.
 
-**浏览器直连**
+**Direct**
 
-浏览器直接请求 Schedy，并在请求中携带 `X-API-Key`。需要 Schedy 启动时允许当前页面来源：
+The browser calls Schedy directly and sends `X-API-Key`. Schedy must allow the page origin:
 
 ```bash
 SCHEDY_CORS_ORIGIN=http://127.0.0.1:5173 schedy server
 ```
 
-生产部署时把来源改成实际页面的 origin，例如 `https://schedy-console.example.com`。如果 Schedy 不支持 CORS 配置，请使用本地代理模式。
+In production, use the real origin, for example `https://schedy-console.example.com`. If you cannot configure CORS on the server, use the local proxy instead.
 
-## 常用命令
+## Scheduling a task
 
-| 命令                | 说明                                     |
-| ------------------- | ---------------------------------------- |
-| `pnpm dev`          | 启动开发服务器（含 `/__schedy` 代理）    |
-| `pnpm typecheck`    | TypeScript 类型检查                      |
-| `pnpm format`       | 使用 Prettier 格式化源码、配置和文档     |
-| `pnpm format:check` | 检查是否符合 Prettier 格式               |
-| `pnpm build`        | 类型检查并构建到 `dist/`                 |
-| `pnpm preview`      | 预览构建结果（同样带代理）               |
-| `pnpm start`        | 启动生产服务器，提供静态文件和代理       |
-| `pnpm mock`         | 启动内存版 Schedy 模拟服务，用于安全测试 |
+There are two ways to set the execution time:
 
-## 本地模拟服务
+- **Specific time** — a one-off task; the request contains only `execute_at`.
+- **Delay** — a recurring task: the chosen start time becomes `execute_at` and the delay interval becomes `schedule`. Schedy fires at the start time and, after each run, enqueues the next one at `fire_time + schedule`. The interval is a Go duration (`30m`, `2h`, `1h30m`); days entered in the UI are converted to hours (`3d` → `72h`).
 
-没有可用的 Schedy 实例时，可以启动内置 mock：
+Notes:
+
+- Only `pending` tasks can be edited; saving replaces all client-owned fields.
+- Cancelling the current pending task also stops the recurrence chain.
+- Every new task is created with an `Idempotency-Key`; see [API behaviour notes](#api-behaviour-notes).
+
+## Scripts
+
+| Command             | Description                                              |
+| ------------------- | -------------------------------------------------------- |
+| `pnpm dev`          | Start the dev server (includes the `/__schedy` proxy)    |
+| `pnpm typecheck`    | Type-check with TypeScript                               |
+| `pnpm format`       | Format source, config, and docs with Prettier            |
+| `pnpm format:check` | Check Prettier formatting                                |
+| `pnpm build`        | Type-check and build to `dist/`                          |
+| `pnpm preview`      | Preview the production build (proxy included)            |
+| `pnpm start`        | Start the production server (static files + proxy)       |
+| `pnpm mock`         | Start the in-memory Schedy mock for safe experimentation |
+
+## Local mock server
+
+If no Schedy instance is available, start the bundled mock:
 
 ```bash
 pnpm mock
 ```
 
-默认监听 `http://127.0.0.1:8080`，预置了待执行、执行中、成功、失败、已取消等示例任务。可选环境变量：
+It listens on `http://127.0.0.1:8080` and seeds pending, running, succeeded, failed, and cancelled tasks, plus a recurring one. Optional environment variables:
 
 ```bash
 PORT=8081 MOCK_API_KEY=dev-secret pnpm mock
 ```
 
-mock 是无状态的，重启后数据会重置。它只用于界面联调，不实现 Schedy 的完整调度语义。
+The mock keeps everything in memory (a restart resets it) and implements only the parts of the Schedy API the UI needs, not the full scheduler semantics.
 
-## 生产部署
+## Production deployment
 
 ```bash
 pnpm install
@@ -100,69 +115,63 @@ pnpm build
 PORT=4173 HOST=0.0.0.0 pnpm start
 ```
 
-`server.mjs` 会：
+`server.mjs`:
 
-- 提供 `dist/` 中的静态资源，对未知路径回退到 `index.html`
-- 在同一端口挂载 `/__schedy` 代理
-- 不读取、不写入任何凭据
+- serves the static assets from `dist/` and falls back to `index.html` for unknown paths (single-page app);
+- mounts the `/__schedy` proxy on the same port;
+- never reads or writes credentials.
 
-环境变量：
+Environment variables:
 
-| 变量   | 默认值      | 说明                                   |
-| ------ | ----------- | -------------------------------------- |
-| `PORT` | `4173`      | 监听端口                               |
-| `HOST` | `127.0.0.1` | 监听地址；对外提供服务时设为 `0.0.0.0` |
+| Variable | Default     | Description                                               |
+| -------- | ----------- | --------------------------------------------------------- |
+| `PORT`   | `4173`      | Listening port                                            |
+| `HOST`   | `127.0.0.1` | Listening address; set to `0.0.0.0` to expose the service |
 
-部署在 Nginx / Caddy 等反向代理后时，建议为备份下载和慢请求设置足够的超时时间（例如 5 分钟），并按需启用 HTTPS。API Key 会随请求经过该服务器，请确保部署环境可信。
+`pnpm start` exits if `dist/index.html` is missing, so run `pnpm build` first.
 
-## 安全说明
+Behind a reverse proxy such as Nginx or Caddy, allow long timeouts for backup downloads and slow requests (for example 5 minutes) and enable HTTPS as needed. The API key passes through the server, so keep the deployment environment trusted.
 
-- 服务地址和 API Key 保存在当前浏览器的 `localStorage`（键名 `schedy-ui.connection.v1`），不会写入源码或构建产物。
-- 同一浏览器配置文件下的其他页面和扩展可能读取 `localStorage`。请使用专用 API Key，并避免在共享电脑上保存生产凭据。
-- 直连模式下 API Key 会出现在浏览器请求头中；代理模式下由本地代理转发，仍然不落盘。
-- 批量删除是**永久删除**，无法撤销；取消任务则是软取消，会保留历史记录。
-- 本项目的代理会向任意用户填写的目标地址发起请求。不要把它暴露给不可信用户，否则可能被当作 SSRF 跳板。生产环境建议限制可访问的目标网段或增加鉴权。
+## Security notes
 
-## API 行为备注
+- The server URL and API key live in the current browser's `localStorage` (`schedy-ui.connection.v1`); nothing is written to the source tree or the build output.
+- Other pages and extensions in the same browser profile can read `localStorage`. Use a dedicated API key and avoid storing production credentials on shared machines.
+- In direct mode the API key travels in browser request headers; in proxy mode it is forwarded by the local proxy and still never stored.
+- Bulk delete is **permanent and cannot be undone**; cancelling a task is a soft cancel that keeps its history.
+- The proxy issues requests to whatever target the user enters. Do not expose it to untrusted users, or it can be abused as an SSRF hop; restrict the reachable network range or add authentication in production.
 
-- 认证头：`X-API-Key`
-- 新建任务始终携带 `Idempotency-Key`：界面会为每个新任务自动生成唯一键，因此每次提交都会创建新任务；保留同一个键重试时，Schedy 会返回首次创建的任务，而不是重复排期。点击“重新生成”可显式换用新的任务标识
-- 更新使用 `PUT`，是完整替换，且只允许更新 `pending` 任务
-- `DELETE /tasks/{id}` 是软取消；`DELETE /tasks` 需要至少一个筛选条件
-- `POST /tasks/{id}/run` 仅适用于终态任务（成功、失败、已取消）
-- 列表使用游标分页，自动刷新会按已加载页的游标重新拉取
+## API behaviour notes
 
-接口文档：https://schedy.mintlify.app
+- Auth header: `X-API-Key`.
+- New tasks always carry an `Idempotency-Key`: the UI generates a fresh key for every new task, so each submission creates a task. Retrying with the same key makes Schedy return the task created the first time instead of scheduling a duplicate; "Regenerate" switches to a new task identity.
+- Updates use `PUT` and replace all client-owned fields; only `pending` tasks can be updated.
+- `DELETE /tasks/{id}` is a soft cancel; `DELETE /tasks` requires at least one filter.
+- `POST /tasks/{id}/run` only applies to finished tasks (succeeded, failed, cancelled).
+- Listings are cursor-paginated; auto-refresh re-reads the loaded pages by their cursors.
 
-## 项目结构
+API docs: <https://schedy.mintlify.app>
+
+## Project structure
 
 ```
 src/
-  components/       通用组件、表单、抽屉、弹窗
-  hooks/            路由、主题、滚动锁
-  lib/api.ts        Schedy API 客户端
-  lib/config.ts     连接配置与校验
-  lib/i18n.tsx      中英文文案、语言状态与翻译辅助
-  lib/format.ts     日期、数字、时长格式化
-  pages/            任务页、系统页、连接页
-  styles.css        设计变量与响应式样式
+  components/       shared components, task form, drawer, modals
+  hooks/            hash routing, theme, body scroll lock
+  lib/api.ts        Schedy API client
+  lib/config.ts     connection config and validation
+  lib/i18n.tsx      Chinese/English messages, locale state, helpers
+  lib/format.ts     date, number, and duration formatting
+  pages/            tasks, system, and connect screens
+  styles.css        design tokens and responsive styles
 server/
-  proxy.mjs         同源反向代理
-server.mjs          生产静态服务器 + 代理
-mock/server.mjs     内存版模拟 Schedy
-vite.config.ts      开发/预览服务器与代理插件
-.editorconfig       EditorConfig 统一编辑器设置
-.gitattributes      Git 换行与文本属性
-.prettierrc.json    Prettier 配置
-.prettierignore     Prettier 忽略规则
+  proxy.mjs         same-origin reverse proxy
+server.mjs          production static server + proxy
+mock/server.mjs     in-memory Schedy mock
+vite.config.ts      dev/preview servers and the proxy plugin
+README.md           this file (English)
+README.zh-CN.md     Chinese README
 ```
 
-## 说明
+## Notes
 
-本项目是独立的社区界面，不是 Schedy 官方项目。界面支持中文和英文，时间按浏览器本地时区显示。
-
-## License
-
-本项目基于 [MIT License](./LICENSE) 开源。
-
-Copyright (c) 2026 schedy-ui contributors
+This project is an independent community console, not an official Schedy project. The UI ships with Chinese and English text and shows all times in the browser's time zone.

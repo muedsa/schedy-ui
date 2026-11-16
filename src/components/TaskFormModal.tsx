@@ -45,6 +45,13 @@ type TimingMode = "at" | "after";
 type PayloadKind = "none" | "json" | "text";
 type DelayUnit = "m" | "h" | "d";
 
+/** Go durations have no day unit, so days are sent as hours. */
+function delayToGoDuration(amount: number, unit: DelayUnit): string {
+  if (unit === "m") return `${amount}m`;
+  if (unit === "h") return `${amount}h`;
+  return `${amount * 24}h`;
+}
+
 type FieldErrors = Partial<
   Record<
     | "url"
@@ -149,6 +156,13 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
     clearError("headers");
   };
 
+  const switchTiming = (mode: TimingMode) => {
+    setTiming(mode);
+    clearError("executeAt");
+    clearError("delay");
+    clearError("schedule");
+  };
+
   const formatJson = () => {
     try {
       const parsed = JSON.parse(payloadText) as unknown;
@@ -168,30 +182,34 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
       errors.url = t("form.err.urlInvalid");
     }
 
+    // Delay mode is a recurring schedule: execute_at is the first run and
+    // schedule is the interval after it. execute_in (relative to now) is never
+    // used, so the first run is anchored to the chosen time.
+    const isDelayMode = timing === "after" && !isEdit;
     let executeAtIso: string | undefined;
-    let executeIn: string | undefined;
-    if (timing === "at" || isEdit) {
-      if (!executeAt) {
-        errors.executeAt = t("form.err.executeAtRequired");
-      } else {
-        const date = new Date(executeAt);
-        if (Number.isNaN(date.getTime())) {
-          errors.executeAt = t("form.err.executeAtInvalid");
-        } else if (date.getTime() <= Date.now() + 1000) {
-          errors.executeAt = t("form.err.executeAtPast");
-        } else {
-          executeAtIso = date.toISOString();
-        }
-      }
+    let delaySchedule: string | undefined;
+
+    if (!executeAt) {
+      errors.executeAt = isDelayMode ? t("form.err.baseRequired") : t("form.err.executeAtRequired");
     } else {
+      const baseDate = new Date(executeAt);
+      if (Number.isNaN(baseDate.getTime())) {
+        errors.executeAt = t("form.err.executeAtInvalid");
+      } else if (baseDate.getTime() <= Date.now() + 1000) {
+        errors.executeAt = t("form.err.executeAtPast");
+      } else {
+        executeAtIso = baseDate.toISOString();
+      }
+    }
+
+    if (isDelayMode) {
       const amount = Number(delayValue);
       if (!delayValue.trim() || !Number.isFinite(amount) || amount <= 0) {
         errors.delay = t("form.err.delayPositive");
       } else if (amount > 3650) {
         errors.delay = t("form.err.delayTooLarge");
       } else {
-        executeIn =
-          delayUnit === "m" ? `${amount}m` : delayUnit === "h" ? `${amount}h` : `${amount * 24}h`;
+        delaySchedule = delayToGoDuration(amount, delayUnit);
       }
     }
 
@@ -247,7 +265,7 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
       errors.onFailure = t("form.err.onFailureInvalid");
     }
 
-    if (schedule.trim()) {
+    if (!isDelayMode && schedule.trim()) {
       const scheduleError = validateGoDuration(schedule);
       if (scheduleError) errors.schedule = durationError(scheduleError);
     }
@@ -273,12 +291,15 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
     };
 
     if (executeAtIso) body.execute_at = executeAtIso;
-    if (executeIn) body.execute_in = executeIn;
     if (hasPayload && method !== "GET" && method !== "HEAD") body.payload = payloadValue;
     if (Object.keys(headerObject).length > 0) body.headers = headerObject;
     if (timeoutValue > 0) body.timeout_ms = timeoutValue;
     if (onFailureUrl.trim()) body.on_failure_url = onFailureUrl.trim();
-    if (schedule.trim()) body.schedule = schedule.trim();
+    if (isDelayMode) {
+      if (delaySchedule) body.schedule = delaySchedule;
+    } else if (schedule.trim()) {
+      body.schedule = schedule.trim();
+    }
 
     if (isEdit) return { body };
 
@@ -309,6 +330,7 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
   };
 
   const payloadDisabled = method === "GET" || method === "HEAD";
+  const isDelayMode = timing === "after" && !isEdit;
   const utcPreview =
     (timing === "at" || isEdit) && executeAt && !Number.isNaN(new Date(executeAt).getTime())
       ? new Date(executeAt).toISOString()
@@ -394,7 +416,7 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
               <button
                 type="button"
                 className={timing === "at" ? "segment active" : "segment"}
-                onClick={() => setTiming("at")}
+                onClick={() => switchTiming("at")}
                 aria-pressed={timing === "at"}
               >
                 {t("form.at")}
@@ -402,7 +424,7 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
               <button
                 type="button"
                 className={timing === "after" ? "segment active" : "segment"}
-                onClick={() => setTiming("after")}
+                onClick={() => switchTiming("after")}
                 aria-pressed={timing === "after"}
               >
                 {t("form.after")}
@@ -410,35 +432,42 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
             </div>
           )}
 
-          {timing === "at" || isEdit ? (
-            <div className="field">
-              <label className="field-label" htmlFor="execute-at">
-                {isEdit ? t("form.newExecuteAt") : t("form.executeAt")}
-              </label>
-              <input
-                id="execute-at"
-                className={`input ${fieldErrors.executeAt ? "has-error" : ""}`}
-                type="datetime-local"
-                step="1"
-                value={executeAt}
-                onChange={(event) => {
-                  setExecuteAt(event.target.value);
-                  clearError("executeAt");
-                }}
-                disabled={submitting}
-              />
-              {fieldErrors.executeAt ? (
-                <span className="field-error">{fieldErrors.executeAt}</span>
-              ) : (
-                <span className="hint">
-                  {utcPreview ? t("form.utcPreview", utcPreview) : t("form.chooseFuture")}
-                </span>
-              )}
-            </div>
-          ) : (
+          <div className="field">
+            <label className="field-label" htmlFor="execute-at">
+              {isEdit
+                ? t("form.newExecuteAt")
+                : isDelayMode
+                  ? t("form.delayBase")
+                  : t("form.executeAt")}
+            </label>
+            <input
+              id="execute-at"
+              className={`input ${fieldErrors.executeAt ? "has-error" : ""}`}
+              type="datetime-local"
+              step="1"
+              value={executeAt}
+              onChange={(event) => {
+                setExecuteAt(event.target.value);
+                clearError("executeAt");
+                clearError("delay");
+              }}
+              disabled={submitting}
+            />
+            {fieldErrors.executeAt ? (
+              <span className="field-error">{fieldErrors.executeAt}</span>
+            ) : isDelayMode ? (
+              <span className="hint">{t("form.delayBaseHint")}</span>
+            ) : (
+              <span className="hint">
+                {utcPreview ? t("form.utcPreview", utcPreview) : t("form.chooseFuture")}
+              </span>
+            )}
+          </div>
+
+          {isDelayMode && (
             <div className="field">
               <label className="field-label" htmlFor="delay-value">
-                {t("form.fromNow")}
+                {t("form.delay")}
               </label>
               <div className="delay-row">
                 <input
@@ -702,28 +731,30 @@ export function TaskFormModal({ open, config, task, onClose, onSaved }: TaskForm
                 {fieldErrors.timeout && <span className="field-error">{fieldErrors.timeout}</span>}
               </label>
 
-              <label className="field">
-                <span className="field-label">
-                  <Repeat2 size={13} /> {t("form.schedule")}{" "}
-                  <span className="label-optional">{t("common.optional")}</span>
-                </span>
-                <input
-                  className={`input mono ${fieldErrors.schedule ? "has-error" : ""}`}
-                  placeholder={t("form.schedulePlaceholder")}
-                  value={schedule}
-                  onChange={(event) => {
-                    setSchedule(event.target.value);
-                    clearError("schedule");
-                  }}
-                  disabled={submitting}
-                  spellCheck={false}
-                />
-                {fieldErrors.schedule ? (
-                  <span className="field-error">{fieldErrors.schedule}</span>
-                ) : (
-                  <span className="hint">{t("form.scheduleHint")}</span>
-                )}
-              </label>
+              {!isDelayMode && (
+                <label className="field">
+                  <span className="field-label">
+                    <Repeat2 size={13} /> {t("form.schedule")}{" "}
+                    <span className="label-optional">{t("common.optional")}</span>
+                  </span>
+                  <input
+                    className={`input mono ${fieldErrors.schedule ? "has-error" : ""}`}
+                    placeholder={t("form.schedulePlaceholder")}
+                    value={schedule}
+                    onChange={(event) => {
+                      setSchedule(event.target.value);
+                      clearError("schedule");
+                    }}
+                    disabled={submitting}
+                    spellCheck={false}
+                  />
+                  {fieldErrors.schedule ? (
+                    <span className="field-error">{fieldErrors.schedule}</span>
+                  ) : (
+                    <span className="hint">{t("form.scheduleHint")}</span>
+                  )}
+                </label>
+              )}
 
               <label className="field field-span-2">
                 <span className="field-label">
